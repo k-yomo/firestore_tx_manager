@@ -1,0 +1,7 @@
+version: '3.7'
+
+services:
+  firestore:
+    image: jdlk7/firestore-emulator:latest
+    ports:
+      - 9090:9090
