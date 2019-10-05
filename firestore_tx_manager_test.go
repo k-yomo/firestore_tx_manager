@@ -2,6 +2,7 @@ package tx_manager
 
 import (
 	"context"
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"reflect"
@@ -10,8 +11,25 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
+const (
+	testProjectName    = "test"
+	testCollectionName = "TestCollection"
+)
+
+func TestMain(m *testing.M) {
+	m.Run()
+}
+
+func newTestStore() *firestore.Client {
+	store, err := firestore.NewClient(context.Background(), testProjectName)
+	if err != nil {
+		panic(fmt.Sprintf("Initialize firstore client failed: %v", err))
+	}
+	return store
+}
+
 func TestNewTxManager(t *testing.T) {
-	store, _ := firestore.NewClient(context.Background(), "test")
+	store := newTestStore()
 	type args struct {
 		store *firestore.Client
 	}
@@ -32,7 +50,7 @@ func TestNewTxManager(t *testing.T) {
 }
 
 func Test_txManager_RunTx(t *testing.T) {
-	store, _ := firestore.NewClient(context.Background(), "test")
+	store := newTestStore()
 	tm := NewTxManager(store)
 	type args struct {
 		ctx context.Context
@@ -50,11 +68,11 @@ func Test_txManager_RunTx(t *testing.T) {
 			args: args{ctx: context.Background(),
 				f: func(ctx context.Context) error {
 					tx, _ := GetTx(ctx)
-					testCollection := tm.store.Collection("test")
+					testCollection := tm.store.Collection(testCollectionName)
 					ref := testCollection.Doc("1")
 					invalidRef := testCollection.Doc("")
-					_ = tx.Set(ref, struct{ num int }{num: 1})
-					err := tx.Set(invalidRef, struct{ num int }{num: 2})
+					_ = tx.Set(ref, struct{ Num int }{Num: 1})
+					err := tx.Set(invalidRef, struct{ Num int }{Num: 2})
 					return err
 				},
 			},
@@ -66,11 +84,11 @@ func Test_txManager_RunTx(t *testing.T) {
 			args: args{ctx: context.Background(),
 				f: func(ctx context.Context) error {
 					tx, _ := GetTx(ctx)
-					testCollection := tm.store.Collection("test")
+					testCollection := tm.store.Collection(testCollectionName)
 					ref1 := testCollection.Doc("1")
 					ref2 := testCollection.Doc("2")
-					_ = tx.Set(ref1, struct{ num int }{num: 1})
-					_ = tx.Set(ref2, struct{ num int }{num: 2})
+					_ = tx.Set(ref1, struct{ Num int }{Num: 1})
+					_ = tx.Set(ref2, struct{ Num int }{Num: 2})
 					return nil
 				},
 			},
@@ -81,7 +99,7 @@ func Test_txManager_RunTx(t *testing.T) {
 			if err := tt.t.RunTx(tt.args.ctx, tt.args.f); (err != nil) != tt.wantErr {
 				t.Errorf("txManager.RunTx() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			testCollection := tm.store.Collection("test")
+			testCollection := tm.store.Collection(testCollectionName)
 			ref, err := testCollection.Doc("1").Get(context.Background())
 			if tt.wantErr {
 				if status.Code(err) != codes.NotFound {
@@ -89,8 +107,9 @@ func Test_txManager_RunTx(t *testing.T) {
 				}
 			} else {
 				if status.Code(err) == codes.NotFound {
-					t.Errorf("txManager.RunTx() got = %v, want %v", codes.NotFound, struct{ num int }{num: 1})
+					t.Errorf("txManager.RunTx() got = %v, want %v", codes.NotFound, struct{ Num int }{Num: 1})
 				}
+				_, _ = ref.Ref.Delete(context.Background())
 			}
 		})
 	}
@@ -132,4 +151,3 @@ func TestGetTx(t *testing.T) {
 		})
 	}
 }
-
