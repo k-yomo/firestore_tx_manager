@@ -1,14 +1,14 @@
 name: Test
 on: [push]
 jobs:
-  services:
-    firestore:
-      image: jdlk7/firestore-emulator:latest
-      ports:
-        - 9090:9090
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      firestore:
+        image: jdlk7/firestore-emulator:latest
+        ports:
+          - 9090:9090
     steps:
 
       - name: Set up Go 1.12
